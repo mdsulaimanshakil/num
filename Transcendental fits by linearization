@@ -1,0 +1,97 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+double rootMeanSquareError(const vector<double>& y, const vector<double>& yhat) {
+    if (y.size() != yhat.size() || y.empty()) return NAN;
+    double s = 0.0;
+    for (size_t i = 0; i < y.size(); ++i) {
+        double d = y[i] - yhat[i];
+        s += d * d;
+    }
+    return sqrt(s / y.size());
+}
+
+pair<double,double> linearFit(const vector<double>& x, const vector<double>& y) {
+    int n = (int)x.size();
+    double sx = 0, sy = 0, sxx = 0, sxy = 0;
+    for (int i = 0; i < n; ++i) {
+        sx += x[i];
+        sy += y[i];
+        sxx += x[i] * x[i];
+        sxy += x[i] * y[i];
+    }
+    double denom = n * sxx - sx * sx;
+    if (fabs(denom) < 1e-15) return {NAN, NAN};
+    double b = (n * sxy - sx * sy) / denom;
+    double a = (sy - b * sx) / n;
+    return {a, b};
+}
+
+int main() {
+    // sample data
+    vector<double> x = {1, 2, 3, 4, 5};
+    vector<double> yexp = {2.0, 5.4, 14.8, 40.4, 110.0}; // exponential like
+    vector<double> ypow = {1, 8, 27, 64, 125}; // power x^3
+
+    // Exponential fit: ln y = ln A + B x
+    bool okExp = true;
+    for (double v : yexp) if (v <= 0) okExp = false;
+    if (okExp) {
+        vector<double> ly(yexp.size());
+        for (size_t i = 0; i < yexp.size(); ++i) ly[i] = log(yexp[i]);
+        auto ab = linearFit(x, ly); // ly = a + b x ; a = lnA
+        double A = exp(ab.first);
+        double B = ab.second;
+        vector<double> yhat(yexp.size());
+        for (size_t i = 0; i < x.size(); ++i) yhat[i] = A * exp(B * x[i]);
+        cout << "Exponential fit y = A exp(B x)\n";
+        cout << "A = " << A << "\n";
+        cout << "B = " << B << "\n";
+        cout << "RMSE = " << rootMeanSquareError(yexp, yhat) << "\n\n";
+    } else {
+        cout << "Exponential fit skipped because y contains nonpositive values\n\n";
+    }
+
+    // Power fit: ln y = ln A + B ln x
+    bool okPow = true;
+    for (size_t i = 0; i < x.size(); ++i) if (x[i] <= 0 || ypow[i] <= 0) okPow = false;
+    if (okPow) {
+        vector<double> lx(x.size()), ly(x.size());
+        for (size_t i = 0; i < x.size(); ++i) {
+            lx[i] = log(x[i]);
+            ly[i] = log(ypow[i]);
+        }
+        auto ab = linearFit(lx, ly); // ly = a + b lx ; a = lnA
+        double A = exp(ab.first);
+        double B = ab.second;
+        vector<double> yhat(x.size());
+        for (size_t i = 0; i < x.size(); ++i) yhat[i] = A * pow(x[i], B);
+        cout << "Power fit y = A x^B\n";
+        cout << "A = " << A << "\n";
+        cout << "B = " << B << "\n";
+        cout << "RMSE = " << rootMeanSquareError(ypow, yhat) << "\n\n";
+    } else {
+        cout << "Power fit skipped because x or y contain nonpositive values\n\n";
+    }
+
+    // Logarithmic fit: y = A + B ln x
+    bool okLog = true;
+    for (double v : x) if (v <= 0) okLog = false;
+    if (okLog) {
+        vector<double> lx(x.size());
+        for (size_t i = 0; i < x.size(); ++i) lx[i] = log(x[i]);
+        auto ab = linearFit(lx, ypow); // y = a + b ln x
+        double A = ab.first;
+        double B = ab.second;
+        vector<double> yhat(x.size());
+        for (size_t i = 0; i < x.size(); ++i) yhat[i] = A + B * log(x[i]);
+        cout << "Logarithmic fit y = A + B ln x (example using ypow as sample)\n";
+        cout << "A = " << A << "\n";
+        cout << "B = " << B << "\n";
+        cout << "RMSE = " << rootMeanSquareError(ypow, yhat) << "\n\n";
+    } else {
+        cout << "Logarithmic fit skipped because x contains nonpositive values\n\n";
+    }
+
+    return 0;
+}
