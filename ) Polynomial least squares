@@ -1,0 +1,99 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+double rootMeanSquareError(const vector<double>& y, const vector<double>& yhat) {
+    if (y.size() != yhat.size() || y.empty()) return NAN;
+    double s = 0.0;
+    for (size_t i = 0; i < y.size(); ++i) {
+        double d = y[i] - yhat[i];
+        s += d * d;
+    }
+    return sqrt(s / y.size());
+}
+
+// solve linear system A x = b, A is n x n, partial pivoting
+vector<double> solveLinearSystem(vector<vector<double>> a, vector<double> b) {
+    int n = (int)a.size();
+    const double eps = 1e-15;
+    for (int col = 0; col < n; ++col) {
+        int pivot = col;
+        double best = fabs(a[col][col]);
+        for (int r = col + 1; r < n; ++r) {
+            double val = fabs(a[r][col]);
+            if (val > best) { best = val; pivot = r; }
+        }
+        if (best < eps) return {}; // singular
+        if (pivot != col) {
+            swap(a[pivot], a[col]);
+            swap(b[pivot], b[col]);
+        }
+        for (int r = col + 1; r < n; ++r) {
+            double f = a[r][col] / a[col][col];
+            for (int c = col; c < n; ++c) a[r][c] -= f * a[col][c];
+            b[r] -= f * b[col];
+        }
+    }
+    vector<double> x(n);
+    for (int i = n - 1; i >= 0; --i) {
+        double s = b[i];
+        for (int j = i + 1; j < n; ++j) s -= a[i][j] * x[j];
+        if (fabs(a[i][i]) < 1e-15) return {};
+        x[i] = s / a[i][i];
+    }
+    return x;
+}
+
+int main() {
+    // sample data
+    vector<double> x = {0, 1, 2, 3, 4};
+    vector<double> y = {1.0, 2.9, 5.1, 7.2, 9.1};
+
+    int degree = 2; // change degree as needed
+    int m = degree + 1;
+    int n = (int)x.size();
+
+    // Precompute sums of powers S[k] = sum x^k for k = 0..2*degree
+    vector<double> S(2 * degree + 1, 0.0);
+    for (int i = 0; i < n; ++i) {
+        double p = 1.0;
+        for (int k = 0; k <= 2 * degree; ++k) {
+            S[k] += p;
+            p *= x[i];
+        }
+    }
+
+    vector<vector<double>> A(m, vector<double>(m, 0.0));
+    vector<double> B(m, 0.0);
+
+    for (int i = 0; i < m; ++i) {
+        for (int j = 0; j < m; ++j) A[i][j] = S[i + j];
+    }
+
+    for (int i = 0; i < n; ++i) {
+        double p = 1.0;
+        for (int j = 0; j < m; ++j) {
+            B[j] += y[i] * p;
+            p *= x[i];
+        }
+    }
+
+    vector<double> coeff = solveLinearSystem(A, B);
+    if (coeff.empty()) {
+        cerr << "Failed to solve normal equations (singular)\n";
+        return 1;
+    }
+
+    vector<double> yhat(n, 0.0);
+    for (int i = 0; i < n; ++i) {
+        double p = 1.0;
+        for (int j = 0; j < m; ++j) {
+            yhat[i] += coeff[j] * p;
+            p *= x[i];
+        }
+    }
+
+    cout << "Polynomial fit degree " << degree << "\n";
+    for (int i = 0; i < m; ++i) cout << "c" << i << " = " << coeff[i] << "\n";
+    cout << "RMSE = " << rootMeanSquareError(y, yhat) << "\n";
+    return 0;
+}
